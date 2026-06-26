@@ -6,18 +6,16 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
-      manual_phase_1:
-        description: 'Force run Phase 1'
-        type: boolean
-        default: false
-      manual_phase_2:
-        description: 'Force run Phase 2'
-        type: boolean
-        default: false
-      manual_phase_3:
-        description: 'Force run Phase 3'
-        type: boolean
-        default: false
+      force_run_phase:
+        description: 'Select a phase to force run immediately (Bypasses file quantity limits)'
+        type: choice
+        default: 'None (Run Automatically)'
+        options:
+          - 'None (Run Automatically)'
+          - 'Phase 1'
+          - 'Phase 2'
+          - 'Phase 3'
+          - 'All Phases'
 
 jobs:
   phase_1:
@@ -27,7 +25,7 @@ jobs:
       - name: Set up Python Environment
         uses: actions/setup-python@v4
         with:
-          python-python-version: '3.10'
+          python-version: '3.10'
 
       - name: Install Workflow Orchestration Dependencies
         run: |
@@ -43,12 +41,16 @@ jobs:
         id: check_condition
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          FORCE_RUN_PHASE: ${{ inputs.force_run_phase }}
         run: |
-          python -c '
           import os
           from huggingface_hub import HfApi
           
-          is_manual = "${{ github.event_name == "workflow_dispatch" && inputs.manual_phase_1 == true }}" == "true"
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          force_run = os.environ.get("FORCE_RUN_PHASE", "")
+          
+          is_manual = event_name == "workflow_dispatch" and force_run in ["Phase 1", "All Phases"]
           if is_manual:
               print("Manual execution initiated. Bypassing quantity boundaries.")
               should_run = "true"
@@ -67,7 +69,7 @@ jobs:
                   
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"should_run={should_run}\n")
-          '
+        shell: python
 
       - name: Trigger Kaggle Kernel Execution Environment
         if: steps.check_condition.outputs.should_run == 'true'
@@ -106,12 +108,16 @@ jobs:
         id: check_condition
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          FORCE_RUN_PHASE: ${{ inputs.force_run_phase }}
         run: |
-          python -c '
           import os
           from huggingface_hub import HfApi
           
-          is_manual = "${{ github.event_name == "workflow_dispatch" && inputs.manual_phase_2 == true }}" == "true"
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          force_run = os.environ.get("FORCE_RUN_PHASE", "")
+          
+          is_manual = event_name == "workflow_dispatch" and force_run in ["Phase 2", "All Phases"]
           if is_manual:
               print("Manual execution initiated. Bypassing quantity boundaries.")
               should_run = "true"
@@ -130,7 +136,7 @@ jobs:
                   
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"should_run={should_run}\n")
-          '
+        shell: python
 
       - name: Trigger Kaggle Kernel Execution Environment
         if: steps.check_condition.outputs.should_run == 'true'
@@ -169,12 +175,16 @@ jobs:
         id: check_condition
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          FORCE_RUN_PHASE: ${{ inputs.force_run_phase }}
         run: |
-          python -c '
           import os
           from huggingface_hub import HfApi
           
-          is_manual = "${{ github.event_name == "workflow_dispatch" && inputs.manual_phase_3 == true }}" == "true"
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          force_run = os.environ.get("FORCE_RUN_PHASE", "")
+          
+          is_manual = event_name == "workflow_dispatch" and force_run in ["Phase 3", "All Phases"]
           if is_manual:
               print("Manual execution initiated. Bypassing quantity boundaries.")
               should_run = "true"
@@ -193,7 +203,7 @@ jobs:
                   
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"should_run={should_run}\n")
-          '
+        shell: python
 
       - name: Trigger Kaggle Kernel Execution Environment
         if: steps.check_condition.outputs.should_run == 'true'
