@@ -40,7 +40,7 @@ jobs:
       - name: Evaluate Phase 1 Execution Prerequisites
         id: check_condition
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
+          暗_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           FORCE_RUN_PHASE: ${{ inputs.force_run_phase }}
         run: |
@@ -76,6 +76,16 @@ jobs:
         run: |
           mkdir -p ./phase_1
           kaggle kernels pull sunnysideup836/model-post-processing-phase-1 -p ./phase_1
+          python -c '
+          import json
+          with open("./phase_1/kernel-metadata.json", "r") as f:
+              data = json.load(f)
+          data["accelerator"] = "none"
+          data["enable_gpu"] = False
+          data["enable_tpu"] = False
+          with open("./phase_1/kernel-metadata.json", "w") as f:
+              json.dump(data, f, indent=4)
+          '
           kaggle kernels push -p ./phase_1
 
       - name: Transmit Operations Notification to Discord Channel
@@ -143,6 +153,16 @@ jobs:
         run: |
           mkdir -p ./phase_2
           kaggle kernels pull sunnysideup836/model-post-processing-phase-2 -p ./phase_2
+          python -c '
+          import json
+          with open("./phase_2/kernel-metadata.json", "r") as f:
+              data = json.load(f)
+          data["accelerator"] = "nvidia2"
+          data["enable_gpu"] = True
+          data["enable_tpu"] = False
+          with open("./phase_2/kernel-metadata.json", "w") as f:
+              json.dump(data, f, indent=4)
+          '
           kaggle kernels push -p ./phase_2
 
       - name: Transmit Operations Notification to Discord Channel
@@ -210,6 +230,16 @@ jobs:
         run: |
           mkdir -p ./phase_3
           kaggle kernels pull sunnysideup836/model-post-processing-phase-3 -p ./phase_3
+          python -c '
+          import json
+          with open("./phase_3/kernel-metadata.json", "r") as f:
+              data = json.load(f)
+          data["accelerator"] = "none"
+          data["enable_gpu"] = False
+          data["enable_tpu"] = False
+          with open("./phase_3/kernel-metadata.json", "w") as f:
+              json.dump(data, f, indent=4)
+          '
           kaggle kernels push -p ./phase_3
 
       - name: Transmit Operations Notification to Discord Channel
