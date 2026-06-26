@@ -1,0 +1,210 @@
+name: Model Post Processing Workflow Manager
+
+on:
+  schedule:
+    # Runs every 5 minutes
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      manual_phase_1:
+        description: 'Force run Phase 1'
+        type: boolean
+        default: false
+      manual_phase_2:
+        description: 'Force run Phase 2'
+        type: boolean
+        default: false
+      manual_phase_3:
+        description: 'Force run Phase 3'
+        type: boolean
+        default: false
+
+jobs:
+  phase_1:
+    name: Phase 1 Processing Pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-python-version: '3.10'
+
+      - name: Install Workflow Orchestration Dependencies
+        run: |
+          pip install huggingface_hub kaggle
+
+      - name: Configure Kaggle Credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Evaluate Phase 1 Execution Prerequisites
+        id: check_condition
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
+        run: |
+          python -c '
+          import os
+          from huggingface_hub import HfApi
+          
+          is_manual = "${{ github.event_name == "workflow_dispatch" && inputs.manual_phase_1 == true }}" == "true"
+          if is_manual:
+              print("Manual execution initiated. Bypassing quantity boundaries.")
+              should_run = "true"
+          else:
+              try:
+                  api = HfApi(token=os.environ["HF_TOKEN"])
+                  all_files = api.list_repo_files(repo_id="BobbyCatchTheRainbow/Model_Post_Processing", repo_type="dataset")
+                  prefix = "raw_models/"
+                  target_files = [f for f in all_files if f.startswith(prefix) and "/" not in f[len(prefix):] and "_used" not in f[len(prefix):]]
+                  count = len(target_files)
+                  print(f"Found {count} unprocessed target files inside raw_models folder.")
+                  should_run = "true" if count >= 4 else "false"
+              except Exception as e:
+                  print(f"Error parsing tracking logs: {e}")
+                  should_run = "false"
+                  
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"should_run={should_run}\n")
+          '
+
+      - name: Trigger Kaggle Kernel Execution Environment
+        if: steps.check_condition.outputs.should_run == 'true'
+        run: |
+          mkdir -p ./phase_1
+          kaggle kernels pull sunnysideup836/model-post-processing-phase-1 -p ./phase_1
+          kaggle kernels push -p ./phase_1
+
+      - name: Transmit Operations Notification to Discord Channel
+        if: steps.check_condition.outputs.should_run == 'true'
+        run: |
+          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+          MESSAGE="$TIMESTAMP - GITHUB ACTIONS - Phase 1 - Triggered commit for notebook: sunnysideup836/model-post-processing-phase-1"
+          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" ${{ secrets.DISCORD_WEBHOOK }}
+
+  phase_2:
+    name: Phase 2 Processing Pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Workflow Orchestration Dependencies
+        run: |
+          pip install huggingface_hub kaggle
+
+      - name: Configure Kaggle Credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Evaluate Phase 2 Execution Prerequisites
+        id: check_condition
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
+        run: |
+          python -c '
+          import os
+          from huggingface_hub import HfApi
+          
+          is_manual = "${{ github.event_name == "workflow_dispatch" && inputs.manual_phase_2 == true }}" == "true"
+          if is_manual:
+              print("Manual execution initiated. Bypassing quantity boundaries.")
+              should_run = "true"
+          else:
+              try:
+                  api = HfApi(token=os.environ["HF_TOKEN"])
+                  all_files = api.list_repo_files(repo_id="BobbyCatchTheRainbow/Model_Post_Processing", repo_type="dataset")
+                  prefix = "processing_output_remeshed_decimated/"
+                  target_files = [f for f in all_files if f.startswith(prefix) and "/" not in f[len(prefix):] and "_used" not in f[len(prefix):]]
+                  count = len(target_files)
+                  print(f"Found {count} unprocessed target files inside processing_output_remeshed_decimated folder.")
+                  should_run = "true" if count >= 12 else "false"
+              except Exception as e:
+                  print(f"Error parsing tracking logs: {e}")
+                  should_run = "false"
+                  
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"should_run={should_run}\n")
+          '
+
+      - name: Trigger Kaggle Kernel Execution Environment
+        if: steps.check_condition.outputs.should_run == 'true'
+        run: |
+          mkdir -p ./phase_2
+          kaggle kernels pull sunnysideup836/model-post-processing-phase-2 -p ./phase_2
+          kaggle kernels push -p ./phase_2
+
+      - name: Transmit Operations Notification to Discord Channel
+        if: steps.check_condition.outputs.should_run == 'true'
+        run: |
+          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+          MESSAGE="$TIMESTAMP - GITHUB ACTIONS - Phase 2 - Triggered commit for notebook: sunnysideup836/model-post-processing-phase-2"
+          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" ${{ secrets.DISCORD_WEBHOOK }}
+
+  phase_3:
+    name: Phase 3 Processing Pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Workflow Orchestration Dependencies
+        run: |
+          pip install huggingface_hub kaggle
+
+      - name: Configure Kaggle Credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Evaluate Phase 3 Execution Prerequisites
+        id: check_condition
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN_MODEL_POST_PROCESSING }}
+        run: |
+          python -c '
+          import os
+          from huggingface_hub import HfApi
+          
+          is_manual = "${{ github.event_name == "workflow_dispatch" && inputs.manual_phase_3 == true }}" == "true"
+          if is_manual:
+              print("Manual execution initiated. Bypassing quantity boundaries.")
+              should_run = "true"
+          else:
+              try:
+                  api = HfApi(token=os.environ["HF_TOKEN"])
+                  all_files = api.list_repo_files(repo_id="BobbyCatchTheRainbow/Model_Post_Processing", repo_type="dataset")
+                  prefix = "processing_output_remeshed_decimated_rigged_adjusted/"
+                  target_files = [f for f in all_files if f.startswith(prefix) and "/" not in f[len(prefix):] and "_used" not in f[len(prefix):]]
+                  count = len(target_files)
+                  print(f"Found {count} unprocessed target files inside processing_output_remeshed_decimated_rigged_adjusted folder.")
+                  should_run = "true" if count >= 4 else "false"
+              except Exception as e:
+                  print(f"Error parsing tracking logs: {e}")
+                  should_run = "false"
+                  
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"should_run={should_run}\n")
+          '
+
+      - name: Trigger Kaggle Kernel Execution Environment
+        if: steps.check_condition.outputs.should_run == 'true'
+        run: |
+          mkdir -p ./phase_3
+          kaggle kernels pull sunnysideup836/model-post-processing-phase-3 -p ./phase_3
+          kaggle kernels push -p ./phase_3
+
+      - name: Transmit Operations Notification to Discord Channel
+        if: steps.check_condition.outputs.should_run == 'true'
+        run: |
+          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+          MESSAGE="$TIMESTAMP - GITHUB ACTIONS - Phase 3 - Triggered commit for notebook: sunnysideup836/model-post-processing-phase-3"
+          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" ${{ secrets.DISCORD_WEBHOOK }}
